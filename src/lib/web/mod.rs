@@ -38,18 +38,24 @@ pub mod test {
     use crate::test::async_runtime;
     use crate::RocketConfig;
     use rocket::local::blocking::Client;
+    use tokio::runtime::Handle;
 
-    pub fn config() -> RocketConfig {
-        use crate::web::{hitcounter::HitCounter, renderer::Renderer};
-
+    pub fn init_test_client() -> (tokio::runtime::Runtime, Client) {
         let rt = async_runtime();
-        let renderer = Renderer::new("./templates".into());
-        let database = crate::data::test::new_db(rt.handle());
-        let hit_counter = HitCounter::new(database.get_pool().clone(), rt.handle().clone());
+        let config = crate::web::test::config(rt.handle());
+        let client = client(config);
+        (rt, client)
+    }
+
+    pub fn config(handle: &Handle) -> RocketConfig {
+        use crate::web::{hitcounter::HitCounter, renderer::Renderer};
+        let renderer = Renderer::new("templates/".into());
+        let database = crate::data::test::new_db(handle);
         let maintenance = crate::domain::maintenance::Maintenance::spawn(
             database.get_pool().clone(),
-            rt.handle().clone(),
+            handle.clone(),
         );
+        let hit_counter = HitCounter::new(database.get_pool().clone(), handle.clone());
 
         RocketConfig {
             renderer,
@@ -59,8 +65,7 @@ pub mod test {
         }
     }
 
-    pub fn client() -> Client {
-        let config = config();
+    pub fn client(config: RocketConfig) -> Client {
         Client::tracked(crate::rocket(config)).expect("failed to build rocket instance")
     }
 }

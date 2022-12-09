@@ -210,20 +210,24 @@ pub mod test {
     use crate::data::AppDatabase;
     use crate::test::async_runtime;
     use crate::web::test::client;
+    use crate::web::test::init_test_client;
     use rocket::http::Status;
 
     #[test]
+    #[test]
     fn gets_home() {
-        let client = client();
+        let (_, client) = init_test_client();
+
         let response = client.get("/").dispatch();
         assert_eq!(response.status(), Status::Ok);
     }
 
     #[test]
     fn error_on_missing_clip() {
-        let client = client();
-        let response = client.get("/clip/asduhfaiudsfsf").dispatch();
-        assert_eq!(response.status(), Status::InternalServerError);
+        let (_, client) = init_test_client();
+
+        let response = client.get("/clip/aasldfjkasldgkj").dispatch();
+        assert_eq!(response.status(), Status::NotFound);
     }
 
     #[test]
@@ -232,8 +236,7 @@ pub mod test {
         use crate::service;
         use rocket::http::{ContentType, Cookie};
 
-        let rt = async_runtime();
-        let client = client();
+        let (rt, client) = init_test_client();
         let db = client.rocket().state::<AppDatabase>().unwrap();
 
         let req = service::ask::NewClip {
@@ -267,5 +270,11 @@ pub mod test {
             .cookie(Cookie::new("password", "123"))
             .dispatch();
         assert_eq!(response.status(), Status::Ok);
+
+        let response = client
+            .post(format!("/clip/raw/{}", clip.shortcode.as_str()))
+            .cookie(Cookie::new("password", "abc"))
+            .dispatch();
+        assert_eq!(response.status(), Status::Unauthorized);
     }
 }

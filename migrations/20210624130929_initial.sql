@@ -1,4 +1,3 @@
--- Add migration script here
 CREATE TABLE IF NOT EXISTS clips
 (
     clip_id   TEXT PRIMARY KEY NOT NULL,
